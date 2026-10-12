@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OSI 七層模型</title>
+<meta name="description" content="以三維模型互動導覽網路 OSI 七層：各層職責、封裝與解封裝、TCP/IP 對照與情境測驗。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sans:"Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","Noto Sans TC",ui-monospace,monospace;
+  --bg:#F3F3F1; --ink:#161616; --ink2:#55575A; --ink3:#8E9093;
+  --rule:rgba(22,22,22,.16); --btn:rgba(255,255,255,.72); --card:rgba(255,255,255,.66);
+  --l7:#C8553D; --l6:#D99A1E; --l5:#8A9A3B; --l4:#2E9A8C; --l3:#4A7DC0; --l2:#6E5BB0; --l1:#6B6E72;
+  --ok:#2E9A8C; --bad:#C8553D;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#141516; --ink:#ECECE8; --ink2:#A9ABAD; --ink3:#76787B;
+    --rule:rgba(236,236,232,.16); --btn:rgba(32,33,35,.72); --card:rgba(32,33,35,.66);
+    --l1:#9A9DA1; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141516; --ink:#ECECE8; --ink2:#A9ABAD; --ink3:#76787B;
+  --rule:rgba(236,236,232,.16); --btn:rgba(32,33,35,.72); --card:rgba(32,33,35,.66);
+  --l1:#9A9DA1; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:400;-webkit-font-smoothing:antialiased;transition:background .4s,color .4s}
+button{font:inherit;color:inherit;cursor:pointer}
+.mono{font-family:var(--mono)}
+
+#stage{position:fixed;inset:0;z-index:0}
+#stage canvas{display:block;touch-action:none}
+.labels{position:absolute;inset:0;pointer-events:none}
+.veil{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(90deg,var(--bg) 0,var(--bg) 380px,transparent 620px);opacity:.92;transition:background .4s}
+
+/* 3D labels */
+.lbl{pointer-events:none;white-space:nowrap;transition:opacity .2s}
+.lbl .in{display:flex;align-items:baseline;gap:6px;transform:translateX(calc(50% + 0px));font-size:13px;color:var(--ink)}
+.lbl.left .in{transform:translateX(-50%);flex-direction:row-reverse}
+.lbl b{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--c);letter-spacing:.04em}
+.lbl i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.lbl.sm .in{font-size:12px}
+.lbl.center .in{transform:none}
+.lbl.title .in{transform:none;font-size:12px;letter-spacing:.12em;color:var(--ink2);padding:3px 8px;border:1px solid var(--rule);background:var(--btn);border-radius:99px}
+.lbl.tag .in{transform:none;font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:4px;background:var(--ink);color:var(--bg)}
+
+/* header */
+#top{position:fixed;left:56px;right:40px;top:28px;height:44px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:14px;font-size:14px;letter-spacing:.06em;color:var(--ink2)}
+.brand b{color:var(--ink);font-weight:500}
+.brand .div{width:1px;height:22px;background:var(--rule)}
+.ctl{display:flex;gap:8px}
+.ctl button,#tools button,#bar button,.btn{border:1px solid var(--rule);background:var(--btn);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:99px;padding:7px 14px;font-size:13px;transition:background .2s,border-color .2s}
+.ctl button:hover,#tools button:hover,#bar button:hover,.btn:hover{border-color:var(--ink3)}
+.ctl button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible{outline:2px solid var(--l3);outline-offset:2px}
+
+#tools{position:fixed;right:40px;top:84px;z-index:3;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink3)}
+
+/* panel */
+#panel{position:fixed;left:56px;top:100px;bottom:92px;width:440px;z-index:2;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;padding-right:8px}
+.pg{display:none}
+.pg.on{display:block;animation:pgIn .55s cubic-bezier(.2,.7,.2,1)}
+@keyframes pgIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.eyebrow{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--ink2);margin-top:28px}
+.eyebrow .num{font-size:12px;color:var(--ink);border:1px solid var(--rule);border-radius:4px;padding:1px 6px}
+.eyebrow .sep{flex:0 0 18px;height:1px;background:var(--rule)}
+h1{font-size:54px;line-height:1.12;font-weight:500;letter-spacing:.02em;margin:22px 0 18px}
+h2{font-size:34px;line-height:1.25;font-weight:500;letter-spacing:.02em;margin:18px 0 14px;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
+h2 em{font-style:normal;font-family:var(--mono);font-weight:300;font-size:16px;color:var(--ink3)}
+h2 .badge{font-family:var(--mono);font-size:14px;font-weight:500;color:#fff;background:var(--c,var(--ink));border-radius:4px;padding:3px 8px;align-self:center}
+h3{font-size:13px;font-weight:500;letter-spacing:.08em;color:var(--ink2);margin:24px 0 10px}
+.lede{font-size:16px;line-height:1.85;color:var(--ink2);margin:0 0 20px;font-weight:300}
+.lede b{color:var(--ink);font-weight:500}
+.hint{font-size:13px;color:var(--ink3);line-height:1.7;margin-top:28px}
+.foot{font-size:11.5px;color:var(--ink3);line-height:1.7;margin-top:26px;border-top:1px solid var(--rule);padding-top:12px}
+
+.figs{display:grid;grid-template-columns:repeat(2,1fr);gap:0 24px;border-top:1px solid var(--rule);padding-top:14px}
+.figs.three{grid-template-columns:repeat(3,1fr);gap:0 16px}
+.fig .n{font-family:var(--mono);font-size:34px;font-weight:300;line-height:1.1}
+.fig .n small{font-family:var(--sans);font-size:14px;margin-left:3px;color:var(--ink2)}
+.fig .k{font-size:12px;color:var(--ink3);margin-top:4px;line-height:1.5}
+.fig .v{font-size:14.5px;line-height:1.5;margin-top:4px;color:var(--ink)}
+
+ul.does{list-style:none;margin:0;padding:0}
+ul.does li{position:relative;padding:8px 0 8px 22px;border-top:1px solid var(--rule);font-size:14.5px;line-height:1.65;color:var(--ink)}
+ul.does li::before{content:"";position:absolute;left:2px;top:17px;width:8px;height:8px;border-radius:2px;background:var(--c)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--mono);font-size:12.5px;padding:4px 10px;border-radius:99px;border:1px solid var(--rule);background:var(--card)}
+.analogy{margin-top:22px;padding:14px 16px;border-left:3px solid var(--c);background:var(--card);border-radius:0 6px 6px 0}
+.analogy .k{font-size:12px;letter-spacing:.08em;color:var(--ink3)}
+.analogy p{margin:6px 0 0;font-size:15px;line-height:1.75}
+
+/* overview rows */
+.stack{display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+.row{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:12px;text-align:left;background:none;border:0;border-bottom:1px solid var(--rule);padding:10px 4px;transition:background .2s,padding .25s}
+.row:hover,.row.hl{background:var(--card);padding-left:10px}
+.row .L{font-family:var(--mono);font-size:12px;font-weight:500;color:#fff;background:var(--c);border-radius:4px;text-align:center;padding:2px 0}
+.row .nm{font-size:15px}
+.row .nm small{display:block;font-size:12.5px;color:var(--ink3);margin-top:2px}
+.row .pdu-s{font-family:var(--mono);font-size:11.5px;color:var(--ink2)}
+.group-tag{font-size:11.5px;color:var(--ink3);letter-spacing:.08em;margin:14px 0 6px}
+.mnemo{margin-top:20px;font-size:13.5px;line-height:1.8;color:var(--ink2)}
+.mnemo b{font-family:var(--mono);font-weight:500;color:var(--ink)}
+
+/* encapsulation */
+.enc-ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 14px}
+.scrub{width:100%;accent-color:var(--ink)}
+.scrub-k{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);font-family:var(--mono);margin-top:2px}
+.enc-now{display:flex;align-items:baseline;gap:10px;margin:18px 0 10px;flex-wrap:wrap}
+.enc-now .side{font-size:12px;letter-spacing:.08em;color:var(--ink3)}
+.enc-now .lay{font-size:22px;font-weight:500}
+.enc-now .pduN{font-family:var(--mono);font-size:12px;padding:2px 8px;border-radius:4px;background:var(--ink);color:var(--bg)}
+.pdu{display:flex;height:46px;border-radius:6px;overflow:hidden;border:1px solid var(--rule);background:var(--card)}
+.pdu .b{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11.5px;color:#fff;border-right:1px solid rgba(255,255,255,.35);min-width:0;overflow:hidden;white-space:nowrap}
+.pdu .b:last-child{border-right:0}
+.pdu .b.pop{animation:pop .5s cubic-bezier(.2,.8,.2,1.2)}
+@keyframes pop{from{transform:scaleX(.2);opacity:0}to{transform:none;opacity:1}}
+.pdu.bits{align-items:center;padding:0 12px;font-family:var(--mono);font-size:14px;letter-spacing:.18em;color:var(--ink2);overflow:hidden;white-space:nowrap}
+.pdu-k{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:var(--ink3);margin-top:8px}
+.pdu-k span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--c);margin-right:5px;vertical-align:0}
+.enc-note{font-size:15px;line-height:1.8;margin-top:16px;min-height:5.4em}
+
+/* compare */
+.cmp{width:100%;border-collapse:collapse;font-size:14px}
+.cmp th{font-size:12px;font-weight:400;color:var(--ink3);text-align:left;padding:6px 6px 6px 0;border-bottom:1px solid var(--rule)}
+.cmp td{padding:11px 6px 11px 0;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.55}
+.cmp td small{display:block;color:var(--ink3);font-family:var(--mono);font-size:11px}
+.dots{display:inline-flex;gap:3px;flex-wrap:wrap}
+.dots i{font-style:normal;font-family:var(--mono);font-size:11px;color:#fff;background:var(--c);border-radius:3px;padding:1px 5px}
+
+/* quiz */
+.qcard{border:1px solid var(--rule);background:var(--card);border-radius:8px;padding:16px 18px}
+.qcard .qn{font-family:var(--mono);font-size:11.5px;color:var(--ink3)}
+.qcard p{font-size:17px;line-height:1.7;margin:8px 0 0}
+.qbtns{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px}
+.qbtns button{border:1px solid var(--rule);background:var(--btn);border-radius:6px;padding:8px 0 6px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:transform .15s,border-color .2s,background .2s}
+.qbtns button b{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--c)}
+.qbtns button span{font-size:11px;color:var(--ink2)}
+.qbtns button:hover:not(:disabled){transform:translateY(-2px);border-color:var(--c)}
+.qbtns button:disabled{cursor:default}
+.qbtns button.right{background:var(--c);border-color:var(--c)}
+.qbtns button.right b,.qbtns button.right span{color:#fff}
+.qbtns button.wrong{border-color:var(--bad);border-style:dashed;opacity:.8}
+.fb{min-height:5.2em;font-size:14.5px;line-height:1.75;margin-top:14px}
+.fb .res{font-weight:500}
+.fb .res.ok{color:var(--ok)} .fb .res.no{color:var(--bad)}
+.qfoot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:13px;color:var(--ink2)}
+
+/* bottom bar */
+#bar{position:fixed;left:56px;right:40px;bottom:28px;height:40px;z-index:3;display:flex;align-items:center;gap:10px}
+#bar #bPrev,#bar #bNext{width:40px;height:40px;padding:0;display:grid;place-items:center}
+#ticks{display:flex;gap:4px;align-items:center}
+#ticks button{border:0;background:none;padding:6px 3px;font-family:var(--mono);font-size:11px;color:var(--ink3);position:relative;border-radius:4px}
+#ticks button::after{content:"";position:absolute;left:3px;right:3px;bottom:1px;height:2px;border-radius:2px;background:var(--rule);transition:background .3s}
+#ticks button.on{color:var(--ink)}
+#ticks button.on::after{background:var(--ink)}
+#ticks button:hover{color:var(--ink)}
+#curT{font-size:13px;color:var(--ink2);margin-left:6px;white-space:nowrap}
+#progress{position:fixed;left:0;top:0;height:2px;background:var(--ink);z-index:4;width:0;transition:width .25s linear}
+
+@media (max-width:820px){
+  .veil{display:none}
+  #top{left:16px;right:16px;top:10px}
+  .brand span:not(.div){display:none}.brand .div{display:none}
+  .ctl button{padding:6px 10px;font-size:12px}
+  #stage{bottom:auto;height:44svh;top:52px}
+  #tools{top:calc(52px + 44svh - 34px);right:16px}
+  #tools span{display:none}
+  #panel{left:16px;right:16px;width:auto;top:calc(52px + 44svh);bottom:64px;padding-right:0;border-top:1px solid var(--rule)}
+  .eyebrow{margin-top:16px}
+  h1{font-size:38px;margin:14px 0}
+  h2{font-size:26px}
+  .figs.three{grid-template-columns:repeat(3,1fr)}
+  .fig .n{font-size:26px}
+  #bar{left:16px;right:16px;bottom:12px}
+  #ticks{overflow-x:auto;scrollbar-width:none;flex:1}
+  #curT{display:none}
+  .qbtns{grid-template-columns:repeat(4,1fr)}
+  /* 手機版封裝章節的兩座小堆疊太窄，隱藏層名，只留主機標題與封包標籤 */
+  .lbl.sm{display:none}
+  /* 畫面窄，3D 標籤只留中文層名 */
+  .lbl i{display:none}
+  /* 對照章節只留 TCP/IP 方塊上的標籤，OSI 對應關係看面板表格 */
+  body[data-mode="cmp"] .lbl.main{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .pg.on,.pdu .b.pop{animation:none}
+}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="progress"></div>
+<div id="stage"></div>
+<div class="veil"></div>
+
+<header id="top">
+  <div class="brand"><b>OSI 七層模型</b><span class="div"></span><span>網路通訊互動導覽</span></div>
+  <div class="ctl">
+    <button id="bAuto" aria-pressed="false">▶ 自動播放</button>
+    <button id="bTheme">明暗</button>
+    <button id="bFull">全螢幕</button>
+  </div>
+</header>
+
+<div id="tools"><span>⟲ 在模型上拖曳可旋轉視角，點選任一層</span><button id="bReset">↺ 重設視角</button></div>
+
+<aside id="panel" aria-live="polite"></aside>
+
+<nav id="bar" aria-label="章節">
+  <button id="bPrev" aria-label="上一章">←</button>
+  <div id="ticks"></div>
+  <button id="bNext" aria-label="下一章">→</button>
+  <div id="curT"></div>
+</nav>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ───────────── 內容 ───────────── */
+const LAYERS = {
+  7:{zh:'應用層',en:'Application',color:'#C8553D',pdu:'資料 Data',addr:'網域名稱、URL',dev:'L7 防火牆、負載平衡器、代理',
+     brief:'為應用程式提供網路服務',
+     lede:'最靠近使用者的一層，為應用程式提供網路服務：瀏覽網頁、收發郵件、查詢網域名稱。注意，<b>應用層指的是協定</b>，不是瀏覽器或 App 本身。',
+     does:['定義應用程式之間交換訊息的格式與規則','提供名稱解析、檔案傳輸、遠端登入、郵件等服務','用狀態碼回報結果，例如 HTTP 200、404、500'],
+     protos:['HTTP / HTTPS','DNS','SMTP','IMAP','FTP','SSH','DHCP','SNMP'],
+     analogy:'信的內容本身：你要說什麼、用什麼格式寫。'},
+  6:{zh:'表示層',en:'Presentation',color:'#D99A1E',pdu:'資料 Data',addr:'無',dev:'通常由主機軟體處理',
+     brief:'編碼、壓縮與加密',
+     lede:'負責「翻譯」：把資料轉成雙方都看得懂的格式，並處理壓縮與加密，讓應用層不必在意資料在線路上長什麼樣子。',
+     does:['字元編碼與格式轉換，例如 UTF-8、ASCII','資料壓縮，例如 gzip、JPEG、MPEG','加密與解密；傳統上將 TLS 的加密功能歸於此層'],
+     protos:['UTF-8','ASCII','JPEG','PNG','MPEG','gzip','MIME','TLS'],
+     analogy:'把信翻譯成對方懂的語言，再裝進上鎖的信封。'},
+  5:{zh:'會議層',en:'Session',color:'#8A9A3B',pdu:'資料 Data',addr:'會話識別碼',dev:'通常由主機軟體處理',
+     brief:'建立、維持與結束會話',
+     lede:'管理兩端之間的「對話」：建立、維持、結束連線階段，並在長時間傳輸中設定檢查點，中斷後可從檢查點續傳。',
+     does:['建立、維持與結束會話','對話控制：決定誰先傳、單向或雙向輪流','同步與檢查點，支援中斷後續傳'],
+     protos:['NetBIOS','RPC','PPTP','SOCKS'],
+     analogy:'打電話：撥通、輪流說話、說「先這樣」再掛斷。'},
+  4:{zh:'傳輸層',en:'Transport',color:'#2E9A8C',pdu:'區段 Segment',addr:'埠號 Port（0–65535）',dev:'防火牆（依埠過濾）、NAT',
+     brief:'端到端傳輸與埠號',
+     lede:'負責<b>端到端</b>傳輸：用埠號把資料交給正確的程式，並決定要可靠（TCP）還是要快（UDP）。',
+     does:['分段與重組：把資料切成區段，再依序號還原','可靠傳輸：確認、重傳、流量控制與壅塞控制（TCP）','用 16 位元埠號區分同一台主機上的不同程式'],
+     protos:['TCP','UDP','QUIC','SCTP'],
+     analogy:'掛號信與平信：要回執、遺失補寄，或寄出就不管。'},
+  3:{zh:'網路層',en:'Network',color:'#4A7DC0',pdu:'封包 Packet',addr:'IP 位址',dev:'路由器、L3 交換器',
+     brief:'邏輯定址與路由',
+     lede:'負責<b>跨網路</b>送達：給每台主機一個邏輯位址（IP），由路由器一跳一跳選出到目的地的路徑。',
+     does:['邏輯定址：IPv4 為 32 位元，IPv6 為 128 位元','路由：依路由表決定下一跳，跨越不同網段','以 TTL 防止封包無限繞圈，必要時進行分片'],
+     protos:['IPv4','IPv6','ICMP','OSPF','BGP','IPsec'],
+     analogy:'郵遞區號與郵局分揀：信件一站一站轉運到對的城市。'},
+  2:{zh:'資料連結層',en:'Data Link',color:'#6E5BB0',pdu:'訊框 Frame',addr:'MAC 位址',dev:'交換器、橋接器、網卡',
+     brief:'同網段傳送與錯誤偵測',
+     lede:'負責<b>同一段網路內</b>的傳送：用 MAC 位址找到相鄰的設備，把封包包成訊框，並檢查傳輸中是否出錯。',
+     does:['實體定址：以 48 位元 MAC 位址識別網卡','成框與錯誤偵測：訊框尾端的 FCS（CRC）檢查碼','媒介存取控制：決定誰可以使用共享的線路或頻道'],
+     protos:['Ethernet','Wi-Fi 802.11','ARP','PPP','VLAN 802.1Q','STP'],
+     analogy:'同一棟大樓的門牌：在這棟樓裡把信送到正確的那一戶。'},
+  1:{zh:'實體層',en:'Physical',color:'#6B6E72',pdu:'位元 Bit',addr:'無',dev:'集線器、中繼器、線材、數據機',
+     brief:'把位元變成訊號',
+     lede:'最底層，把 0 與 1 變成電壓、光脈衝或無線電波，並規定接頭、線材、腳位與傳輸速率。',
+     does:['位元的編碼與訊號傳送','規定線材、接頭與腳位，例如 RJ45、光纖','決定傳輸速率，以及全雙工或半雙工'],
+     protos:['1000BASE-T','1000BASE-SX','RJ45','802.11 PHY','DSL'],
+     analogy:'道路與郵車：不管信裡寫什麼，只負責把東西實際運過去。'},
+};
+const PDU = {7:'資料 Data',6:'資料 Data',5:'資料 Data',4:'區段 Segment',3:'封包 Packet',2:'訊框 Frame',1:'位元 Bits'};
+const SNOTE = {
+  7:'瀏覽器產生 HTTP 請求，例如 <b>GET /index.html</b>。這時它只是一段「資料」。',
+  6:'依約定格式編碼；若走 HTTPS，資料會在這裡被加密。',
+  5:'沿用已建立的會話送出，會議層記錄這段對話的狀態。',
+  4:'加上 <b>TCP 標頭</b>：來源與目的埠號（例如 443）、序號、確認號。資料變成「區段」。',
+  3:'加上 <b>IP 標頭</b>：來源與目的 IP 位址、TTL。區段變成「封包」。',
+  2:'加上<b>乙太網路標頭</b>（來源與目的 MAC）與尾端 <b>FCS 檢查碼</b>，封包變成「訊框」。',
+  1:'網卡把訊框轉成一連串位元，以電壓、光或無線電波送出。',
+};
+const WNOTE = '位元沿著線路前進。途中的交換器看 MAC 轉送，路由器看 IP 選路；每經過一台路由器，第 2 層的訊框都會重新包裝。';
+const RNOTE = {
+  1:'接收端網卡偵測訊號，還原成位元。',
+  2:'檢查 FCS 是否正確、目的 MAC 是否是自己，<b>拆掉</b>訊框標頭與尾端。',
+  3:'確認目的 IP 是自己，<b>拆掉</b> IP 標頭。',
+  4:'依目的埠號交給對應的程式，依序號重組並回送確認，<b>拆掉</b> TCP 標頭。',
+  5:'對應到正確的會話。',
+  6:'解密、解壓縮，並解碼成應用程式看得懂的格式。',
+  7:'伺服器上的網頁程式收到完整的 HTTP 請求，開始處理並準備回應。',
+};
+const QUIZ = [
+  {q:'打開網站，畫面顯示「404 Not Found」。',L:7,why:'404 是 HTTP 狀態碼：連線已經通了，是伺服器找不到該資源。'},
+  {q:'網路線鬆脫，網卡上的連線燈不亮。',L:1,why:'連訊號都沒有，問題在線材與接頭。'},
+  {q:'文字檔以 UTF-8 儲存，對方卻用 Big5 開啟，變成一堆亂碼。',L:6,why:'資料完整送到了，是編碼格式沒有對上。'},
+  {q:'交換器的連接埠被設到錯誤的 VLAN，同一間辦公室的電腦互相看不到。',L:2,why:'VLAN 是在資料連結層劃分廣播網域。'},
+  {q:'traceroute 停在某台路由器之後就沒有回應。',L:3,why:'封包在路由途中被丟棄，屬於網路層的路徑問題。'},
+  {q:'防火牆規則擋掉了 TCP 443 埠，HTTPS 連不上。',L:4,why:'埠號是傳輸層的資訊，依埠過濾屬於第 4 層。'},
+  {q:'大檔案下載到一半斷線，重新連上後從檢查點接著傳。',L:5,why:'設定檢查點、恢復會話，是會議層的經典職責。'},
+  {q:'瀏覽器顯示「找不到伺服器的 IP 位址」。',L:7,why:'這是 DNS 名稱解析失敗；DNS 是應用層協定。'},
+  {q:'視訊會議偶爾掉幾格畫面，但系統不會重傳。',L:4,why:'選用 UDP、遺失不重傳，是傳輸層的取捨。'},
+];
+const CH = [
+  {kind:'cover',t:'封面'},
+  {kind:'overview',t:'七層總覽'},
+  ...[7,6,5,4,3,2,1].map(L=>({kind:'layer',L,t:`L${L} ${LAYERS[L].zh}`})),
+  {kind:'encap',t:'封裝與解封裝'},
+  {kind:'compare',t:'TCP/IP 對照'},
+  {kind:'quiz',t:'情境測驗'},
+];
+const chOfLayer = L => CH.findIndex(c=>c.kind==='layer'&&c.L===L);
+const pad = n => String(n).padStart(2,'0');
+
+/* ───────────── 面板 ───────────── */
+const panel = document.getElementById('panel');
+function secCover(i){return `
+<div class="eyebrow"><span class="num">${pad(i)}</span>網路基礎<span class="sep"></span>ISO 7498</div>
+<h1>OSI<br>七層模型</h1>
+<p class="lede">從你按下 Enter 到網頁出現，資料要被一層層包裝、送上線路，再一層層拆開。OSI（Open Systems Interconnection）把這段旅程切成七層：<b>每層只負責一件事</b>，並透過介面與上下層合作。</p>
+<div class="figs three">
+  <div class="fig"><div class="n">7<small>層</small></div><div class="k">由實體訊號到應用服務</div></div>
+  <div class="fig"><div class="n">1984</div><div class="k">ISO 發布參考模型</div></div>
+  <div class="fig"><div class="n">4<small>層</small></div><div class="k">網際網路實際採用的 TCP/IP</div></div>
+</div>
+<p class="hint">按 → 或空白鍵開始，F 切換全螢幕；三維畫面可拖曳旋轉，點選任一層可直接跳到該章。</p>`}
+function secOverview(i){
+  const row = L => `<button class="row" data-layer="${L}" style="--c:${LAYERS[L].color}"><span class="L">L${L}</span><span class="nm">${LAYERS[L].zh} <span class="mono" style="color:var(--ink3);font-size:12px">${LAYERS[L].en}</span><small>${LAYERS[L].brief}</small></span><span class="pdu-s">${PDU[L].split(' ')[0]}</span></button>`;
+  return `
+<div class="eyebrow"><span class="num">${pad(i)}</span>總覽</div>
+<h2>由上而下，各司其職</h2>
+<p class="lede">上三層處理<b>要說什麼</b>，下四層處理<b>怎麼送到</b>。發送端由上往下逐層封裝，接收端由下往上逐層拆開。點選任一層查看細節。</p>
+<div class="group-tag">上層　主機端的資料處理</div>
+<div class="stack">${[7,6,5].map(row).join('')}</div>
+<div class="group-tag">下層　資料的傳送</div>
+<div class="stack">${[4,3,2,1].map(row).join('')}</div>
+<p class="mnemo">記憶口訣（7→1）：<b>A</b>ll <b>P</b>eople <b>S</b>eem <b>T</b>o <b>N</b>eed <b>D</b>ata <b>P</b>rocessing<br>（1→7）：<b>P</b>lease <b>D</b>o <b>N</b>ot <b>T</b>hrow <b>S</b>ausage <b>P</b>izza <b>A</b>way</p>`}
+function secLayer(i,L){const d=LAYERS[L];return `
+<div class="eyebrow"><span class="num">${pad(i)}</span>Layer ${L}<span class="sep"></span>${L>=5?'上層・資料處理':'下層・資料傳送'}</div>
+<h2><span class="badge">L${L}</span>${d.zh}<em>${d.en}</em></h2>
+<p class="lede">${d.lede}</p>
+<div class="figs three">
+  <div class="fig"><div class="k">傳輸單位 PDU</div><div class="v">${d.pdu}</div></div>
+  <div class="fig"><div class="k">定址方式</div><div class="v">${d.addr}</div></div>
+  <div class="fig"><div class="k">代表設備</div><div class="v">${d.dev}</div></div>
+</div>
+<h3>負責什麼</h3>
+<ul class="does">${d.does.map(x=>`<li>${x}</li>`).join('')}</ul>
+<h3>常見協定與標準</h3>
+<div class="chips">${d.protos.map(p=>`<span class="chip">${p}</span>`).join('')}</div>
+<div class="analogy"><span class="k">寄信比喻</span><p>${d.analogy}</p></div>`}
+function secEncap(i){return `
+<div class="eyebrow"><span class="num">${pad(i)}</span>資料的旅程</div>
+<h2>封裝與解封裝</h2>
+<p class="lede">跟著一個 HTTP 請求，從主機 A 的應用層一路往下、經過線路，再從主機 B 的實體層往上。每往下一層就<b>加上一個標頭</b>，往上時再<b>逐一拆掉</b>。</p>
+<div class="enc-ctl">
+  <button class="btn" id="eBack">◀ 上一步</button>
+  <button class="btn" id="ePlay">Ⅱ 暫停</button>
+  <button class="btn" id="eFwd">下一步 ▶</button>
+  <button class="btn" id="eRe">↻ 重播</button>
+</div>
+<input class="scrub" id="eScrub" type="range" min="0" max="14" step="1" value="0" aria-label="封裝步驟">
+<div class="scrub-k"><span>主機 A ↓</span><span>線路</span><span>↑ 主機 B</span></div>
+<div class="enc-now"><span class="side" id="eSide"></span><span class="lay" id="eLay"></span><span class="pduN" id="ePdu"></span></div>
+<div class="pdu" id="eBar"></div>
+<div class="pdu-k" id="eKey"></div>
+<p class="enc-note" id="eNote"></p>`}
+function secCompare(i){
+  const dots = Ls => `<span class="dots">${Ls.map(L=>`<i style="--c:${LAYERS[L].color}">L${L}</i>`).join('')}</span>`;
+  return `
+<div class="eyebrow"><span class="num">${pad(i)}</span>理論與實務</div>
+<h2>OSI 與 TCP/IP 對照</h2>
+<p class="lede">OSI 是<b>概念參考模型</b>，適合用來討論與除錯；網際網路實際運作依循 <b>TCP/IP 模型</b>（RFC 1122），把職責收斂成四層。</p>
+<table class="cmp">
+  <thead><tr><th>TCP/IP</th><th>對應 OSI</th><th>代表協定</th></tr></thead>
+  <tbody>
+    <tr><td>應用層<small>Application</small></td><td>${dots([7,6,5])}</td><td>HTTP、DNS、TLS、SMTP</td></tr>
+    <tr><td>傳輸層<small>Transport</small></td><td>${dots([4])}</td><td>TCP、UDP、QUIC</td></tr>
+    <tr><td>網際網路層<small>Internet</small></td><td>${dots([3])}</td><td>IP、ICMP</td></tr>
+    <tr><td>連結層<small>Link</small></td><td>${dots([2,1])}</td><td>Ethernet、Wi-Fi、ARP</td></tr>
+  </tbody>
+</table>
+<p class="foot">也有常見的「五層」說法：把連結層拆回資料連結層與實體層，教科書與面試題常用這種分法。</p>`}
+function secQuiz(i){return `
+<div class="eyebrow"><span class="num">${pad(i)}</span>動手判斷</div>
+<h2>這是哪一層的問題？</h2>
+<p class="lede">讀情境，選出最相關的一層，也可以直接點模型或按數字鍵 1–7。答完後模型會標出正確的那一層。</p>
+<div class="qcard"><div class="qn" id="qN"></div><p id="qT"></p></div>
+<div class="qbtns" id="qB">${[7,6,5,4,3,2,1].map(L=>`<button data-ans="${L}" style="--c:${LAYERS[L].color}"><b>L${L}</b><span>${LAYERS[L].zh}</span></button>`).join('')}</div>
+<div class="fb" id="qF"></div>
+<div class="qfoot"><span id="qS"></span><button class="btn" id="qNext">下一題 →</button></div>`}
+
+panel.innerHTML = CH.map((c,i)=>{
+  const body = c.kind==='cover'?secCover(i):c.kind==='overview'?secOverview(i):c.kind==='layer'?secLayer(i,c.L):c.kind==='encap'?secEncap(i):c.kind==='compare'?secCompare(i):secQuiz(i);
+  return `<section class="pg" data-i="${i}" ${c.L?`style="--c:${LAYERS[c.L].color}"`:''}>${body}</section>`;
+}).join('');
+const sections = [...panel.querySelectorAll('.pg')];
+
+const ticks = document.getElementById('ticks');
+ticks.innerHTML = CH.map((c,i)=>`<button data-go="${i}" title="${c.t}" aria-label="${pad(i)} ${c.t}">${pad(i)}</button>`).join('');
+const tickBtns = [...ticks.children];
+
+/* ───────────── 三維場景 ───────────── */
+const stage = document.getElementById('stage');
+const mqMobile = matchMedia('(max-width:820px)');
+const reduced = matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.appendChild(renderer.domElement);
+const labelR = new CSS2DRenderer();
+labelR.domElement.className = 'labels';
+stage.appendChild(labelR.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32,1,0.1,200);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = .08;
+controls.enablePan = false; controls.minDistance = 7; controls.maxDistance = 38;
+controls.maxPolarAngle = Math.PI*0.48; controls.autoRotateSpeed = 0.6;
+
+const hemi = new THREE.HemisphereLight(0xffffff,0xc9cac6,2.0); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff,2.2);
+sun.position.set(7,15,9); sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+// 陰影相機只框住實際會出現物件的範圍（封裝章節 x 約 ±6.5），解析度集中在模型上
+Object.assign(sun.shadow.camera,{left:-8.5,right:8.5,top:8,bottom:-8,near:4,far:34});
+sun.shadow.radius = 4;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun);
+// 補光：不投影，只提亮面向鏡頭的側面與端蓋
+const fill = new THREE.DirectionalLight(0xffffff,.7);
+fill.position.set(6,3,12); scene.add(fill);
+const groundMat = new THREE.ShadowMaterial({opacity:.16});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80,80),groundMat);
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+
+const SP = 0.8;
+const yOf = L => 0.45 + (L-1)*SP;
+const edgeMats = [];
+const bodyMats = []; // {m, color, mix}
+const units = [];
+
+function label(html, cls, color){
+  const el = document.createElement('div');
+  el.className = 'lbl '+(cls||'');
+  if(color) el.style.setProperty('--c',color);
+  el.innerHTML = `<div class="in">${html}</div>`;
+  return {el, obj:new CSS2DObject(el)};
+}
+// 相同尺寸共用同一份幾何體；材質仍各自獨立，因為透明度是逐層控制
+const geoCache = new Map(), edgeCache = new Map();
+function boxGeo(w,h,d){
+  const k = `${w.toFixed(3)},${h.toFixed(3)},${d.toFixed(3)}`;
+  if(!geoCache.has(k)) geoCache.set(k,new THREE.BoxGeometry(w,h,d));
+  return geoCache.get(k);
+}
+function edgesOf(geo){
+  if(!edgeCache.has(geo)) edgeCache.set(geo,new THREE.EdgesGeometry(geo));
+  return edgeCache.get(geo);
+}
+function addEdges(mesh, op=.42){
+  const m = new THREE.LineBasicMaterial({color:0x161616,transparent:true,opacity:op});
+  edgeMats.push(m);
+  const l = new THREE.LineSegments(edgesOf(mesh.geometry),m);
+  mesh.add(l); return l;
+}
+function makeUnit(root, home, labels=[]){
+  root.position.copy(home);
+  const u = {root, home:home.clone(), parts:[], labels, vis:{t:1,c:1}, dim:{t:1,c:1}, off:{t:new THREE.Vector3(), c:new THREE.Vector3()}};
+  u.casters = [];
+  root.traverse(o=>{
+    if(o.material){ o.material.transparent = true; u.parts.push({m:o.material, base:o.material.opacity, tr:true}); }
+    if(o.isMesh && o.castShadow) u.casters.push(o);
+  });
+  units.push(u); scene.add(root); return u;
+}
+function slab(L, w, d, h, opts={}){
+  const g = new THREE.Group();
+  const c = new THREE.Color(LAYERS[L].color);
+  const bm = new THREE.MeshStandardMaterial({color:0xffffff,roughness:.85,metalness:0});
+  bodyMats.push({m:bm,color:c,mix:.72});
+  // 本體與彩色端蓋不重疊，避免 z-fighting
+  const cw = Math.min(.34, w*.12);
+  const body = new THREE.Mesh(boxGeo(w-cw,h,d),bm);
+  body.position.x = opts.capLeft ? cw/2 : -cw/2;
+  body.castShadow = true; body.receiveShadow = true; body.userData.L = L;
+  addEdges(body);
+  g.add(body);
+  const cap = new THREE.Mesh(boxGeo(cw,h,d), new THREE.MeshStandardMaterial({color:c,roughness:.6}));
+  cap.position.x = opts.capLeft ? -w/2+cw/2 : w/2-cw/2;
+  cap.castShadow = true; cap.userData.L = L;
+  addEdges(cap,.3);
+  g.add(cap);
+  const labels = [];
+  if(opts.label !== false){
+    const short = opts.short;
+    const lb = label(short?`<b>L${L}</b><span>${LAYERS[L].zh}</span>`:`<b>L${L}</b><span>${LAYERS[L].zh}</span><i>${LAYERS[L].en}</i>`, (short?'sm ':'main ')+(opts.capLeft?'left':''), LAYERS[L].color);
+    // 主堆疊從右前方觀看，右後角在畫面最右側，標籤放那裡才不會壓到層板
+    lb.obj.position.set(opts.capLeft? -w/2-.25 : w/2+.3, 0, short ? 0 : -d/2);
+    g.add(lb.obj); labels.push(lb.el);
+  }
+  return {g, body, cap, labels};
+}
+
+// 主堆疊
+const main = {};
+const pickables = [];
+for(let L=1; L<=7; L++){
+  const s = slab(L,5,3.2,.55);
+  const u = makeUnit(s.g, new THREE.Vector3(0,yOf(L),0), s.labels);
+  u.L = L; u.bm = s.body.material; main[L] = u;
+  pickables.push(s.body, s.cap);
+}
+
+// 封裝用的兩座小堆疊
+const encS = {}, encR = {};
+const EX = 4.2;
+for(let L=1; L<=7; L++){
+  // 標籤都放在兩座堆疊的內側，發送端的標籤才不會被左側面板蓋住
+  const a = slab(L,2.6,2,.42,{short:true});
+  encS[L] = makeUnit(a.g,new THREE.Vector3(-EX,yOf(L),0),a.labels); encS[L].L=L;
+  const b = slab(L,2.6,2,.42,{short:true,capLeft:true});
+  encR[L] = makeUnit(b.g,new THREE.Vector3(EX,yOf(L),0),b.labels); encR[L].L=L;
+}
+const encTitles = new THREE.Group();
+const tA = label('主機 A｜發送端','title'); tA.obj.position.set(-EX,yOf(7)+.85,0); encTitles.add(tA.obj);
+const tB = label('主機 B｜接收端','title'); tB.obj.position.set(EX,yOf(7)+.85,0); encTitles.add(tB.obj);
+const encTitleU = makeUnit(encTitles,new THREE.Vector3(),[tA.el,tB.el]);
+
+// 線路
+const curve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(-EX+1.3,yOf(1),0), new THREE.Vector3(-1.6,.1,.7),
+  new THREE.Vector3(1.6,.1,.7), new THREE.Vector3(EX-1.3,yOf(1),0)]);
+const cableMat = new THREE.MeshStandardMaterial({color:0x6B6E72,roughness:.5});
+bodyMats.push({m:cableMat,color:new THREE.Color('#6B6E72'),mix:0});
+const cable = new THREE.Mesh(new THREE.TubeGeometry(curve,80,.05,10,false),cableMat);
+cable.castShadow = true;
+const cableG = new THREE.Group(); cableG.add(cable);
+const pulses = [];
+for(let k=0;k<4;k++){
+  const p = new THREE.Mesh(new THREE.SphereGeometry(.11,16,12),new THREE.MeshStandardMaterial({color:0xD99A1E,emissive:0xD99A1E,emissiveIntensity:.6}));
+  cableG.add(p); pulses.push(p);
+}
+const cableU = makeUnit(cableG,new THREE.Vector3());
+
+// TCP/IP 對照方塊
+const TCPIP = [
+  {zh:'應用層',en:'Application',top:7,bot:5,color:'#C8553D'},
+  {zh:'傳輸層',en:'Transport',top:4,bot:4,color:'#2E9A8C'},
+  {zh:'網際網路層',en:'Internet',top:3,bot:3,color:'#4A7DC0'},
+  {zh:'連結層',en:'Link',top:2,bot:1,color:'#6B6E72'},
+];
+const tcpU = TCPIP.map(t=>{
+  const h = (t.top-t.bot)*SP+.55;
+  const g = new THREE.Group();
+  const bm = new THREE.MeshStandardMaterial({color:0xffffff,roughness:.85});
+  bodyMats.push({m:bm,color:new THREE.Color(t.color),mix:.6});
+  const m = new THREE.Mesh(boxGeo(3.2,h,3.2),bm);
+  m.castShadow = true; m.receiveShadow = true; addEdges(m,.5); g.add(m);
+  // 標籤置中貼在方塊正面，避免和 OSI 的標籤重疊或超出畫面
+  const lb = label(`<span>${t.zh}</span><i>${t.en}</i>`,'center',t.color);
+  lb.obj.position.set(0,0,1.62); g.add(lb.obj);
+  return makeUnit(g,new THREE.Vector3(4.0,(yOf(t.top)+yOf(t.bot))/2,0),[lb.el]);
+});
+const cmpTitles = new THREE.Group();
+const tO = label('OSI','title'); tO.obj.position.set(-3.6,yOf(7)+.85,0); cmpTitles.add(tO.obj);
+const tT = label('TCP/IP','title'); tT.obj.position.set(4.0,yOf(7)+.85,0); cmpTitles.add(tT.obj);
+const cmpTitleU = makeUnit(cmpTitles,new THREE.Vector3(),[tO.el,tT.el]);
+
+// 封包
+const PK = [
+  {k:'eth',w:.42,c:LAYERS[2].color,L:2,txt:'ETH'},
+  {k:'ip', w:.42,c:LAYERS[3].color,L:3,txt:'IP'},
+  {k:'tcp',w:.42,c:LAYERS[4].color,L:4,txt:'TCP'},
+  {k:'data',w:1.05,c:LAYERS[7].color,L:7,txt:'DATA'},
+  {k:'fcs',w:.22,c:LAYERS[2].color,L:2,txt:'FCS'},
+];
+const packet = new THREE.Group();
+PK.forEach(b=>{
+  const m = new THREE.Mesh(boxGeo(1,1,1),new THREE.MeshStandardMaterial({color:b.c,roughness:.55}));
+  m.castShadow = true; addEdges(m,.35);
+  m.scale.set(.001,.36,.36); b.mesh = m; b.cur = 0; b.tgt = 0; packet.add(m);
+});
+const bits = new THREE.Group();
+const BITS = '01101001011100'.split('');
+const bitMeshes = BITS.map((v,k)=>{
+  const m = new THREE.Mesh(boxGeo(.15,.15,.15),new THREE.MeshStandardMaterial({color:v==='1'?0x161616:0xffffff,roughness:.5}));
+  addEdges(m,.5); bits.add(m); return m;
+});
+packet.add(bits);
+const pkTag = label('','tag'); pkTag.obj.position.set(0,.52,0); packet.add(pkTag.obj);
+scene.add(packet);
+const pkState = {pos:new THREE.Vector3(-EX,yOf(7),1.7), tgt:new THREE.Vector3(-EX,yOf(7),1.7), bits:0, bitsT:0};
+
+/* ───────────── 狀態 ───────────── */
+let cur = -1, hoverL = 0, auto = false, autoAcc = 0;
+const enc = {step:0, playing:true, acc:0};
+const STEPS = [];
+for(let L=7;L>=1;L--) STEPS.push({side:'s',L});
+STEPS.push({side:'w',L:1});
+for(let L=1;L<=7;L++) STEPS.push({side:'r',L});
+const quiz = {i:0, answered:false, pick:0, right:0, done:0};
+
+function modeOf(ch){ return ch.kind==='encap'?'enc':ch.kind==='compare'?'cmp':'stack'; }
+
+function computeTargets(){
+  const ch = CH[cur]; const mode = modeOf(ch);
+  document.body.dataset.mode = mode;
+  requestRender();
+  for(let L=1;L<=7;L++){
+    const u = main[L];
+    u.vis.t = mode==='enc'?0:1;
+    let dim = 1, ox = 0, oy = 0;
+    if(mode==='cmp') ox = -3.6;
+    if(ch.kind==='cover') oy = (L-4)*.24;
+    if(ch.kind==='layer'){ dim = L===ch.L?1:.14; if(L===ch.L) ox = 1.3; }
+    if(ch.kind==='quiz' && quiz.answered){
+      const c = QUIZ[quiz.i].L;
+      dim = L===c?1:(L===quiz.pick?.5:.14); if(L===c) ox = .8;
+    }
+    const hov = hoverL===L && mode==='stack';
+    if(hov && ch.kind!=='layer' && !(ch.kind==='quiz'&&quiz.answered)) ox += .5;
+    // hover 回饋：層板本體帶一點該層顏色的自發光
+    u.bm.emissive.set(hov ? LAYERS[L].color : 0x000000);
+    u.bm.emissiveIntensity = hov ? .18 : 0;
+    u.dim.t = dim; u.off.t.set(ox,oy,0);
+  }
+  const st = STEPS[enc.step];
+  for(let L=1;L<=7;L++){
+    encS[L].vis.t = encR[L].vis.t = mode==='enc'?1:0;
+    encS[L].dim.t = (st.side==='s'&&st.L===L)||(st.side==='w'&&L===1)?1:.32;
+    encR[L].dim.t = (st.side==='r'&&st.L===L)||(st.side==='w'&&L===1)?1:.32;
+    encS[L].off.t.set(st.side==='s'&&st.L===L?-.25:0,0,0);
+    encR[L].off.t.set(st.side==='r'&&st.L===L?.25:0,0,0);
+  }
+  encTitleU.vis.t = cableU.vis.t = mode==='enc'?1:0;
+  tcpU.forEach(u=>u.vis.t = mode==='cmp'?1:0);
+  cmpTitleU.vis.t = mode==='cmp'?1:0;
+
+  // 封包
+  const hdr = st.L;
+  PK.forEach(b=>{ b.tgt = hdr===1 ? 0 : (b.k==='data' ? 1 : (hdr<=b.L ? 1 : 0)); });
+  pkState.bitsT = hdr===1 ? 1 : 0;
+  if(st.side==='s') pkState.tgt.set(-EX-.3,yOf(st.L),1.7);
+  else if(st.side==='r') pkState.tgt.set(EX+.3,yOf(st.L),1.7);
+  else pkState.tgt.set(0,.75,1.1);
+  pkTag.el.querySelector('.in').textContent = PDU[st.L];
+}
+
+/* 相機 */
+const CAM = {
+  cover:{p:[11,8.5,13.5],t:[0,2.9,0]},
+  stack:{p:[11.2,7.6,14],t:[.3,2.8,0]},
+  enc:{p:[0,7.4,23.5],t:[0,2.5,.4],mobile:{scale:1.75,shift:0}},
+  cmp:{p:[1.5,7,23],t:[.2,2.8,0],mobile:{scale:1.5,shift:0}},
+};
+function camFor(ch){
+  if(ch.kind==='cover') return CAM.cover;
+  if(ch.kind==='layer'){
+    // 目標往堆疊中心偏一些，看最上或最下層時其他層才不會被裁到畫面外
+    const ty = yOf(ch.L)*.6 + 2.8*.4;
+    return {p:[11.5,ty+4.4,14],t:[1.8,ty,0]};
+  }
+  if(ch.kind==='encap') return CAM.enc;
+  if(ch.kind==='compare') return CAM.cmp;
+  return CAM.stack;
+}
+let fly = null;
+function flyTo(c, instant){
+  const p = new THREE.Vector3(...c.p), t = new THREE.Vector3(...c.t);
+  // 手機版沒有左側面板，標籤都在模型右側，所以相機與目標一起往右移，讓標籤留在畫面內
+  if(mqMobile.matches){
+    const m = c.mobile || {scale:1.12, shift:1.1};
+    p.sub(t).multiplyScalar(m.scale).add(t);
+    p.x += m.shift; t.x += m.shift;
+  }
+  if(instant||reduced){ camera.position.copy(p); controls.target.copy(t); fly=null; return; }
+  fly = {p0:camera.position.clone(), t0:controls.target.clone(), p1:p, t1:t, k:0};
+}
+controls.addEventListener('start',()=>{ fly = null; });
+const ease = x => x<.5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2;
+
+/* ───────────── 章節切換 ───────────── */
+const curT = document.getElementById('curT');
+function go(i, instant){
+  i = Math.max(0,Math.min(CH.length-1,i));
+  if(i===cur) return;
+  cur = i;
+  sections.forEach((s,j)=>s.classList.toggle('on',j===i));
+  tickBtns.forEach((b,j)=>b.classList.toggle('on',j===i));
+  tickBtns[i].scrollIntoView({block:'nearest',inline:'center'});
+  panel.scrollTop = 0;
+  curT.textContent = `${pad(i)}　${CH[i].t}`;
+  history.replaceState(null,'','#'+i);
+  const ch = CH[i];
+  if(ch.kind==='encap'){ enc.step=0; enc.playing=!reduced; enc.acc=0; renderEnc(); }
+  if(ch.kind==='quiz') renderQuiz();
+  controls.autoRotate = ch.kind==='cover' && !reduced;
+  hoverL = 0;
+  flyTo(camFor(ch), instant);
+  computeTargets();
+  autoAcc = 0;
+}
+ticks.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b) go(+b.dataset.go); });
+document.getElementById('bPrev').onclick = ()=>go(cur-1);
+document.getElementById('bNext').onclick = ()=>go(cur+1);
+document.getElementById('bReset').onclick = ()=>flyTo(camFor(CH[cur]));
+
+// 總覽列：滑過連動模型、點選跳章
+panel.addEventListener('click',e=>{
+  const r = e.target.closest('.row'); if(r) go(chOfLayer(+r.dataset.layer));
+});
+panel.addEventListener('pointerover',e=>{
+  const r = e.target.closest('.row');
+  const L = r ? +r.dataset.layer : 0;
+  if(L!==hoverL && CH[cur].kind==='overview'){ hoverL = L; computeTargets(); }
+});
+
+/* 封裝控制 */
+const $ = id => document.getElementById(id);
+let prevBlocks = [];
+function renderEnc(){
+  const st = STEPS[enc.step], L = st.L, d = LAYERS[L];
+  $('eSide').textContent = st.side==='s'?'主機 A　往下封裝':st.side==='w'?'傳輸線路':'主機 B　往上拆封';
+  $('eLay').textContent = st.side==='w' ? '位元在線路上' : `L${L} ${d.zh}`;
+  $('ePdu').textContent = PDU[L];
+  $('eNote').innerHTML = st.side==='s'?SNOTE[L]:st.side==='w'?WNOTE:RNOTE[L];
+  $('eScrub').value = enc.step;
+  $('ePlay').textContent = enc.playing?'Ⅱ 暫停':'▶ 播放';
+  const bar = $('eBar');
+  if(L===1){
+    bar.className = 'pdu bits';
+    bar.textContent = '0110100101110010 1101001011100101 0010111010010110';
+    $('eKey').innerHTML = `<span style="--c:${LAYERS[1].color}">整個訊框被轉成位元串流</span>`;
+    prevBlocks = [];
+  } else {
+    bar.className = 'pdu';
+    const blocks = PK.filter(b=>b.k==='data'||L<=b.L);
+    const flex = {eth:.8,ip:.8,tcp:.8,data:2.2,fcs:.45};
+    bar.innerHTML = blocks.map(b=>`<div class="b ${prevBlocks.includes(b.k)?'':'pop'}" style="flex:${flex[b.k]};background:${b.c}">${b.txt}</div>`).join('');
+    prevBlocks = blocks.map(b=>b.k);
+    const key = [];
+    if(L<=2) key.push(`<span style="--c:${LAYERS[2].color}">乙太網路標頭／FCS（L2）</span>`);
+    if(L<=3) key.push(`<span style="--c:${LAYERS[3].color}">IP 標頭（L3）</span>`);
+    if(L<=4) key.push(`<span style="--c:${LAYERS[4].color}">TCP 標頭（L4）</span>`);
+    key.push(`<span style="--c:${LAYERS[7].color}">應用資料</span>`);
+    $('eKey').innerHTML = key.join('');
+  }
+  if(CH[cur]?.kind==='encap') computeTargets();
+}
+function encGo(s){ enc.step = Math.max(0,Math.min(STEPS.length-1,s)); enc.acc = 0; renderEnc(); }
+$('eBack').onclick = ()=>{ enc.playing=false; encGo(enc.step-1); };
+$('eFwd').onclick = ()=>{ enc.playing=false; encGo(enc.step+1); };
+$('ePlay').onclick = ()=>{ if(enc.step===STEPS.length-1){ enc.step=0; prevBlocks=[]; } enc.playing=!enc.playing; enc.acc=0; renderEnc(); };
+$('eRe').onclick = ()=>{ prevBlocks=[]; enc.playing=true; encGo(0); };
+$('eScrub').oninput = e=>{ enc.playing=false; encGo(+e.target.value); };
+
+/* 測驗 */
+function renderQuiz(){
+  const q = QUIZ[quiz.i];
+  $('qN').textContent = `情境 ${quiz.i+1} / ${QUIZ.length}`;
+  $('qT').textContent = q.q;
+  $('qB').querySelectorAll('button').forEach(b=>{ b.disabled=false; b.className=''; });
+  $('qF').innerHTML = '';
+  $('qS').textContent = quiz.done ? `答對 ${quiz.right} / ${quiz.done}` : '';
+  $('qNext').style.visibility = 'hidden';
+}
+function answer(L){
+  if(quiz.answered || CH[cur].kind!=='quiz') return;
+  const q = QUIZ[quiz.i];
+  quiz.answered = true; quiz.pick = L; quiz.done++;
+  const ok = L===q.L; if(ok) quiz.right++;
+  $('qB').querySelectorAll('button').forEach(b=>{
+    const v = +b.dataset.ans; b.disabled = true;
+    if(v===q.L) b.className='right'; else if(v===L) b.className='wrong';
+  });
+  const d = LAYERS[q.L];
+  $('qF').innerHTML = ok
+    ? `<span class="res ok">答對了｜L${q.L} ${d.zh}</span><br>${q.why}`
+    : `<span class="res no">不是 L${L} ${LAYERS[L].zh}</span>，正確答案是 <b>L${q.L} ${d.zh}</b>。<br>${q.why}`;
+  $('qS').textContent = `答對 ${quiz.right} / ${quiz.done}`;
+  $('qNext').style.visibility = 'visible';
+  $('qNext').textContent = quiz.i===QUIZ.length-1 ? '從頭再來 ↻' : '下一題 →';
+  computeTargets();
+}
+$('qB').addEventListener('click',e=>{ const b=e.target.closest('[data-ans]'); if(b) answer(+b.dataset.ans); });
+$('qNext').onclick = ()=>{
+  if(quiz.i===QUIZ.length-1){ quiz.i=0; quiz.right=0; quiz.done=0; } else quiz.i++;
+  quiz.answered=false; quiz.pick=0; renderQuiz(); computeTargets();
+};
+
+/* 拾取：滑過與點選模型 */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let downAt = null;
+function pickL(e){
+  if(modeOf(CH[cur])==='enc') return 0;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const hit = ray.intersectObjects(pickables,false).find(h=>main[h.object.userData.L].vis.c>.5);
+  return hit ? hit.object.userData.L : 0;
+}
+// pointermove 只記下位置，射線檢測在主迴圈裡每幀最多做一次
+let pendingHover = null;
+renderer.domElement.addEventListener('pointermove',e=>{ if(!e.buttons) pendingHover = e; });
+function processHover(){
+  if(!pendingHover) return;
+  const L = pickL(pendingHover); pendingHover = null;
+  renderer.domElement.style.cursor = L?'pointer':'grab';
+  if(L!==hoverL){ hoverL = L;
+    panel.querySelectorAll('.row').forEach(r=>r.classList.toggle('hl',+r.dataset.layer===L));
+    computeTargets(); }
+}
+renderer.domElement.addEventListener('pointerleave',()=>{ pendingHover = null; if(hoverL){ hoverL=0; computeTargets(); }});
+renderer.domElement.addEventListener('pointerdown',e=>{ downAt=[e.clientX,e.clientY]; });
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!downAt || Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1])>5) return;
+  const L = pickL(e); if(!L) return;
+  if(CH[cur].kind==='quiz') answer(L); else go(chOfLayer(L));
+});
+
+/* 頂部控制 */
+const bAuto = $('bAuto');
+bAuto.onclick = ()=>{ auto=!auto; autoAcc=0; bAuto.setAttribute('aria-pressed',auto); bAuto.textContent = auto?'Ⅱ 自動播放':'▶ 自動播放'; };
+function themeNow(){ return document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'); }
+function applyTheme(){
+  const dark = themeNow()==='dark';
+  const ink = new THREE.Color(dark?'#ECECE8':'#161616');
+  edgeMats.forEach(m=>m.color.copy(ink));
+  const base = new THREE.Color(dark?'#2A2C2F':'#FFFFFF');
+  bodyMats.forEach(b=>b.m.color.copy(b.color).lerp(base, dark? Math.min(.62,b.mix*.85) : b.mix));
+  bitMeshes.forEach((m,k)=>m.material.color.set(BITS[k]==='1' ? (dark?'#ECECE8':'#161616') : (dark?'#2A2C2F':'#FFFFFF')));
+  groundMat.opacity = dark?.38:.16;
+  hemi.groundColor.set(dark?'#3a3b3d':'#c9cac6');
+  requestRender();
+}
+$('bTheme').onclick = ()=>{ document.documentElement.dataset.theme = themeNow()==='dark'?'light':'dark'; applyTheme(); };
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',applyTheme);
+function toggleFull(){ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); }
+$('bFull').onclick = toggleFull;
+
+addEventListener('keydown',e=>{
+  if(e.target.closest('input,textarea,select')) return;
+  const k = e.key;
+  if(k==='ArrowRight'||k==='PageDown'||(k===' '&&!e.target.closest('button'))){ e.preventDefault(); go(cur+1); }
+  else if(k==='ArrowLeft'||k==='PageUp'){ e.preventDefault(); go(cur-1); }
+  else if(k==='f'||k==='F') toggleFull();
+  else if(k==='Home') go(0);
+  else if(k==='End') go(CH.length-1);
+  else if(CH[cur].kind==='quiz' && /^[1-7]$/.test(k)) answer(+k);
+});
+
+/* 尺寸 */
+function resize(){
+  const r = stage.getBoundingClientRect();
+  const w = Math.max(1,r.width), h = Math.max(1,r.height);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(w,h); labelR.setSize(w,h);
+  camera.aspect = w/h;
+  if(!mqMobile.matches){
+    const shift = Math.min(300, panel.getBoundingClientRect().right/2);
+    camera.setViewOffset(w,h,-shift,0,w,h);
+  } else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+  requestRender();
+}
+addEventListener('resize',resize);
+addEventListener('hashchange',()=>{ const n = parseInt(location.hash.slice(1)); if(Number.isFinite(n)) go(n); });
+mqMobile.addEventListener('change',()=>{ resize(); flyTo(camFor(CH[cur]),true); });
+
+/* ───────────── 主迴圈 ───────────── */
+// 按需重繪：畫面靜止時跳過 WebGL 與標籤的繪製，狀態邏輯（自動播放、封裝步進）照常每幀執行
+let wake = 2;
+function requestRender(){ wake = Math.max(wake,2); }
+controls.addEventListener('change',requestRender);
+const EPS = 1e-3;
+function setLabel(el, o, vis){
+  if(el._o!==o){ el._o = o; el.style.opacity = o; }
+  if(el._v!==vis){ el._v = vis; el.style.visibility = vis; }
+}
+const clock = new THREE.Clock();
+const progress = $('progress');
+function tick(){
+  const dt = Math.min(clock.getDelta(),.25), t = clock.elapsedTime;
+  const k = reduced ? 1 : 1-Math.exp(-dt*6);
+
+  if(fly){
+    fly.k = Math.min(1, fly.k + dt/1.3);
+    const e = ease(fly.k);
+    camera.position.lerpVectors(fly.p0,fly.p1,e);
+    controls.target.lerpVectors(fly.t0,fly.t1,e);
+    if(fly.k>=1) fly = null;
+  }
+  processHover();
+  let active = !!fly;
+  if(controls.update()) active = true;
+  if(controls.autoRotate) active = true;
+
+  for(const u of units){
+    const moving = Math.abs(u.vis.t-u.vis.c)>EPS || Math.abs(u.dim.t-u.dim.c)>EPS || u.off.c.distanceToSquared(u.off.t)>EPS*EPS;
+    if(!moving && !u.dirty) continue;
+    if(moving){
+      u.vis.c += (u.vis.t-u.vis.c)*k;
+      u.dim.c += (u.dim.t-u.dim.c)*k;
+      u.off.c.lerp(u.off.t,k);
+      active = true; u.dirty = true;
+    } else { u.vis.c = u.vis.t; u.dim.c = u.dim.t; u.off.c.copy(u.off.t); u.dirty = false; }
+    u.root.position.copy(u.home).add(u.off.c);
+    const a = u.vis.c*u.dim.c;
+    u.root.visible = u.vis.c>.01;
+    for(const p of u.parts){
+      p.m.opacity = p.base*a; p.m.depthWrite = a>.6;
+      // 完全不透明時改走不透明渲染流程，深度排序正確，不會和其他層互相透出
+      const tr = p.base*a < .999;
+      if(tr!==p.tr){ p.tr = tr; p.m.transparent = tr; p.m.needsUpdate = true; }
+    }
+    // 變淡的層不投影，否則地面陰影會透過半透明層板形成一大塊灰
+    const cast = a>.6;
+    if(cast!==u.cast){ u.cast = cast; for(const m of u.casters) m.castShadow = cast; }
+    for(const el of u.labels) setLabel(el, +(u.vis.c*(.3+.7*u.dim.c)).toFixed(3), u.vis.c<.03?'hidden':'visible');
+  }
+
+  // 封包
+  const encOn = cableU.vis.c;
+  packet.visible = encOn>.5;
+  setLabel(pkTag.el, 1, encOn>.5?'visible':'hidden');
+  if(packet.visible){
+    active = true;
+    pkState.pos.lerp(pkState.tgt, reduced?1:1-Math.exp(-dt*4));
+    packet.position.copy(pkState.pos);
+    packet.position.y += Math.sin(t*2.2)*.04;
+    let total = 0;
+    PK.forEach(b=>{ b.cur += (b.tgt-b.cur)*k; total += b.w*b.cur + (b.cur>.01?.04:0); });
+    let x = -total/2;
+    PK.forEach(b=>{
+      const w = Math.max(.001,b.w*b.cur);
+      b.mesh.scale.x = w; b.mesh.visible = b.cur>.01;
+      b.mesh.position.x = x + w/2; x += w + (b.cur>.01?.04:0);
+    });
+    pkState.bits += (pkState.bitsT-pkState.bits)*k;
+    bits.visible = pkState.bits>.02;
+    const span = BITS.length*.2;
+    bitMeshes.forEach((m,i)=>{
+      m.position.x = ((i*.2 + t*.7) % span) - span/2;
+      m.position.y = Math.sin(t*6+i)*.04;
+      m.scale.setScalar(pkState.bits);
+    });
+    const onWire = STEPS[enc.step].side==='w';
+    pulses.forEach((p,i)=>{
+      p.visible = onWire;
+      p.position.copy(curve.getPointAt(((t*.45)+i/pulses.length)%1));
+    });
+  }
+
+  // 封裝自動前進
+  if(CH[cur]?.kind==='encap' && enc.playing){
+    enc.acc += dt;
+    if(enc.acc>1.6){
+      if(enc.step<STEPS.length-1) encGo(enc.step+1);
+      else { enc.playing=false; renderEnc(); }
+    }
+  }
+
+  // 自動播放章節
+  if(auto){
+    const ch = CH[cur];
+    const busy = ch.kind==='encap' && enc.playing;
+    if(!busy) autoAcc += dt;
+    const need = ch.kind==='encap'?2.5:8;
+    progress.style.width = (busy?0:Math.min(1,autoAcc/need)*100)+'%';
+    if(autoAcc>need){
+      if(cur>=CH.length-2){ go(cur+1); bAuto.click(); progress.style.width='0'; }
+      else go(cur+1);
+    }
+  } else progress.style.width = '0';
+
+  if(active || wake>0){
+    renderer.render(scene,camera);
+    labelR.render(scene,camera);
+    if(wake>0) wake--;
+  }
+  requestAnimationFrame(tick);
+}
+
+/* 啟動 */
+applyTheme();
+resize();
+const start = parseInt(location.hash.slice(1));
+go(Number.isFinite(start)?start:0, true);
+units.forEach(u=>{ u.vis.c=u.vis.t; u.dim.c=u.dim.t; u.off.c.copy(u.off.t); u.dirty=true; });
+pkState.pos.copy(pkState.tgt);
+tick();
+</script>
+</body>
+</html>
